@@ -6,11 +6,10 @@ This repository is the ECCV 2026 project page for **Rectifying the Depths: A Uni
 
 The full training and inference code will be released after paper acceptance.
 
-Manuscript source files are intentionally excluded from this repository.
 
 ## Environment
 
-- Python 3
+- Python 3.12
 - PyTorch 1.8
 - `numpy`
 - `matplotlib`
