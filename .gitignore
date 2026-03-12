@@ -14,6 +14,16 @@ supplementary_expanded.pdf
 /fig_*.pdf
 /fig_*.png
 /fig/
+/Sections/
+/bibliography/
+/main.tex
+/supplementary.tex
+/supplementary_expanded.tex
+/root.tex
+/eccv.sty
+/eccvabbrv.sty
+/llncs.cls
+/splncs04.bst
 /Sections/ori/
 /lncs_history.txt
 /lncs_readme.txt
