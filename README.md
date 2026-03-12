@@ -35,8 +35,6 @@ python evaluate.py --config configs/rf_mcuie.yaml --dataset UIEB
 ## Repository Layout
 
 - `PIC/`: visualization assets and auxiliary plotting scripts
-- `scripts/`: result-figure helper scripts
-- `input image/`: example input/output images for visualization utilities
 
 ## Benchmark Highlights
 
