@@ -1,0 +1,23 @@
+.DS_Store
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+main.pdf
+supplementary.pdf
+supplementary_expanded.pdf
+/tmp/
+/fig_*.pdf
+/fig_*.png
+/fig/
+/Sections/ori/
+/lncs_history.txt
+/lncs_readme.txt
+/截屏2026-03-12 23.43.06.png
+/分辨率：512512.txt
+/PIC/fig1_preview.png
+/PIC/截屏2026-03-12 23.43.06.png

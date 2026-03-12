@@ -1,0 +1,27 @@
+% !TeX root = ../main.tex
+\section{Introduction}
+\label{sec:intro}
+
+Underwater optical imaging is inevitably degraded by wavelength-dependent absorption and scattering, which jointly cause contrast attenuation, haze-like veiling light, detail blur, and severe color casts \cite{r1,r12}. Such degradations not only deteriorate human perception but also directly undermine the reliability of underwater machine vision for autonomous inspection, navigation, and manipulation \cite{r2,r3}. Therefore, underwater image enhancement (UIE) remains a fundamental yet challenging prerequisite for robust underwater robotic perception.
+
+Over the past decade, UIE has evolved from hand-crafted priors and physics-inspired inversion \cite{r4,r14,r17} to learning-based enhancement driven by curated benchmarks and increasingly powerful backbones \cite{r18,r6}. Modern deep models, including attention-enhanced CNNs and Transformers, improve global color consistency and local detail recovery \cite{r0,r42,r7}. Nevertheless, the practical deployment of UIE models still faces persistent difficulties. Training supervision is often imperfect because of the synthetic-to-real gap, noisy ``reference'' images, and local over-enhancement artifacts, which can mislead optimization and harm generalization. Purely data-driven mappings may also underutilize physical cues such as background light and depth-dependent attenuation, leading to unstable color correction in diverse water types and lighting conditions.
+
+Recently, diffusion-based generative models have become a frontier paradigm for low-level vision because of their strong learned priors and texture synthesis capability \cite{r20,r22}. Several works have started to adapt conditional diffusion to underwater enhancement and demonstrate impressive perceptual quality \cite{r9,r24,r8,r10}. However, standard diffusion sampling typically requires dozens to hundreds of iterative denoising steps, which results in considerable latency and energy consumption; even with accelerated solvers or distillation, efficient deployment on embedded underwater platforms remains non-trivial \cite{r21,r43,r45,r46}.
+
+To address these challenges, we propose \emph{RF-MCUIE}, a \textbf{M}ulti-\textbf{C}ondition \textbf{U}nderwater \textbf{I}mage \textbf{E}nhancement framework based on \textbf{R}ectified \textbf{F}low \cite{r11}. Compared with diffusion models, rectified flow learns a nearly straight transport dynamics that enables high-quality generation with remarkably few function evaluations, offering a favorable quality--efficiency trade-off \cite{r30,r49}. In addition, we inject physics-guided conditions into the generative process to better conform to underwater image formation through distance-independent background light estimation DBLE, and we introduce an adaptive masking strategy to reduce the negative impact of unreliable training regions. Fig.~\ref{fig:intro_tradeoff} summarizes the resulting quality--efficiency characteristics.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_tradeoff_scatter.pdf}
+    \caption{Restoration quality--efficiency trade-off of representative methods. RF-MCUIE achieves a favorable balance with low perceptual error and low computational cost.}
+    \label{fig:intro_tradeoff}
+\end{figure}
+
+Despite rapid progress, UIE still suffers from limited real paired data, strong domain shifts across water types and devices, and evaluation protocols that are weakly aligned with downstream tasks such as detection and SLAM \cite{r6,r18}. Designing physically consistent, efficient, and task-aware enhancement models remains an open direction for future research.
+
+The main contributions are summarized as follows:
+\begin{itemize}
+    \item \textbf{Adaptive masking for reliable supervision.} We propose an Adaptive Masking (ADMK) strategy that detects sub-optimally enhanced local regions via multi-color-space discrepancies and suppresses their influence during training, improving stability and generalization.
+    \item \textbf{Physics-guided multi-condition rectified flow.} We introduce distance-independent background light estimation DBLE and build an efficient rectified-flow-based enhancement network conditioned on physically meaningful cues, including background light and transmission-related maps, enabling robust dehazing and color correction across diverse underwater conditions.
+    \item \textbf{Quality--efficiency oriented optimization.} A composite objective combining flow regression, structural similarity, and perceptual constraints is adopted to enhance fine textures while maintaining faithful structure under few-step inference.
+\end{itemize}

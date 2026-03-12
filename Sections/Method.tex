@@ -1,0 +1,138 @@
+% !TeX root = ../main.tex
+\section{Method}
+\label{sec:method}
+
+\subsection{Overall Architecture}
+\label{subsec:overall_architecture}
+
+RF-MCUIE is designed for underwater scenes with mixed degradations, including wavelength-dependent attenuation, spatially varying scattering, and color bias under different water types. The framework combines physical-condition construction and conditional rectified flow transport in a unified pipeline. As shown in \cref{fig:overall_arch}, the full system consists of an adaptive preprocessing module and a multi-condition rectified flow enhancement network.
+
+\begin{figure}[tb]
+    \centering
+    \makebox[\linewidth][c]{\includegraphics[width=1.06\linewidth]{fig1.pdf}}
+    \caption{Overall framework of RF-MCUIE, including adaptive preprocessing and multi-condition rectified flow enhancement.}
+    \label{fig:overall_arch}
+\end{figure}
+
+During preprocessing, the model estimates physically meaningful priors from the raw input and filters unreliable supervision areas. These outputs are fused into a condition tensor that is injected into the flow network at training and inference time. During generation, the network learns a direct transport from noise to the enhanced image manifold under these conditions, which reduces iterative denoising overhead while preserving fine structures and color consistency.
+
+\subsubsection{Problem Formulation and Multi-Condition Inputs}
+Given a raw underwater image $I_{raw}\in[0,1]^{H\times W\times 3}$, the objective is to recover a visually clear image $J$ with improved structure and color fidelity. The imaging process is modeled as
+\begin{equation}
+I_{raw}^{c}(\mathbf{x}) = J^{c}(\mathbf{x})\,T^{c}(\mathbf{x}) + B^{c}(\mathbf{x})\bigl(1-T^{c}(\mathbf{x})\bigr),
+\label{eq:uw_imaging_model}
+\end{equation}
+where $B$ and $T$ denote the background-light component and transmission component. In practice, direct inversion is unstable in diverse marine environments, especially when depth, turbidity, and illumination vary simultaneously. RF-MCUIE therefore uses estimated physical maps as soft constraints instead of relying on explicit inverse reconstruction.
+
+Specifically, the DBLE module estimates background light and transmission from $I_{raw}$, and ADMK provides a binary reliability mask $\mathcal{M}$ for robust supervision. The condition tensor is built by masked concatenation:
+\begin{equation}
+C = \mathrm{Concat}\!\bigl(\mathcal{M}\odot I_{raw},\ \mathcal{M}\odot B,\ \mathcal{M}\odot T\bigr),
+\label{eq:cond_concat_overview}
+\end{equation}
+which jointly encodes appearance information and physics-related priors. This condition design encourages the network to focus on valid regions and suppresses the influence of low-quality pseudo targets.
+
+\subsubsection{Conditional Rectified Flow Formulation}
+Conditioned on $C$, RF-MCUIE learns a transport path from Gaussian noise to the clear-image manifold. The generation dynamics are defined by
+\begin{equation}
+\frac{dX_t}{dt} = v_{\theta}(X_t, C, t),\qquad X_0\sim\mathcal{N}(0,\mathbf{I}),\ t\in[0,1],
+\label{eq:rf_ode}
+\end{equation}
+where $v_{\theta}$ is parameterized by a U-Net backbone. The final state $X_1$ is treated as the enhanced result. Compared with diffusion-style sampling that requires many reverse steps, the rectified flow trajectory is directly optimized for efficient transport, so high-quality restoration can be obtained with only a few integration steps.
+
+\subsection{Adaptive Masking (ADMK) Strategy}
+Public underwater datasets usually provide reference images produced by traditional or early deep models. These references improve supervision availability but may include local artifacts, over-enhancement, or chromatic drift. If all pixels are treated equally during optimization, the model can overfit these errors and amplify unstable regions. ADMK addresses this issue by constructing a reliability-aware training mask.
+
+\begin{figure}[H]
+    \centering
+    \vspace{-0.4cm}
+    \includegraphics[width=\linewidth]{fig2.png}
+    \caption{Generation pipeline of Adaptive Masking (ADMK).}
+    \label{fig:admk}
+    \vspace{-0.4cm}
+\end{figure}
+
+ADMK first converts $I_{raw}$ and the reference image $I_{enh}$ to LAB space and computes channel-wise discrepancy maps. A multi-weight projection then aggregates these differences:
+\begin{equation}
+\Delta_{gray}(\mathbf{x}) = \max_{k\in\{1,\dots,K\}}\left(\omega_L^k\Delta L(\mathbf{x}) + \omega_A^k\Delta A(\mathbf{x}) + \omega_B^k\Delta B(\mathbf{x})\right).
+\label{eq:admk_gray}
+\end{equation}
+This max-projection mechanism improves robustness to different artifact patterns because luminance and chromatic deviations are emphasized with different weights.
+
+After Gaussian smoothing, ADMK applies thresholding to obtain the binary mask:
+\begin{equation}
+\mathcal{M}(\mathbf{x}) =
+\begin{cases}
+1, & \text{if } (G_{\sigma} * \Delta_{gray})(\mathbf{x}) > \tau,\\
+0, & \text{otherwise}.
+\end{cases}
+\label{eq:admk_binary}
+\end{equation}
+Pixels with value 1 are treated as reliable supervision regions in both condition construction and loss computation. Adaptive threshold statistics and morphological post-processing are reported in Supplementary A.
+
+\subsection{Distance-independent Background Light Estimation (DBLE)}
+\label{subsec:dble}
+
+DBLE extracts physically interpretable priors without explicit metric depth estimation. The design follows two principles: the background-light field varies slowly in space, while transmission is tied to local visibility attenuation. Based on these principles, DBLE computes a smooth background map and a refined transmission map that are later injected into the condition tensor.
+
+The background-light component is estimated with guided filtering:
+\begin{equation}
+B^c = \mathrm{GF}(I_{raw}^c; g, r_B, \epsilon_B),\qquad c\in\{r,g,b\},
+\label{eq:dble_B_main}
+\end{equation}
+where $g$ is the guidance image, $r_B$ is the filter radius, and $\epsilon_B$ controls edge preservation strength. This operation keeps large-scale illumination trends while suppressing texture-level noise.
+
+Using the estimated $B$, DBLE computes a coarse transmission by normalized local dark response:
+\begin{equation}
+T_0(\mathbf{x}) = 1 - \omega\!\left(\min_{\mathbf{y}\in\Omega(\mathbf{x})}\ \min_{c\in\{r,g,b\}}\frac{I_{raw}^{c}(\mathbf{y})}{B^{c}(\mathbf{y})+\epsilon}\right),
+\label{eq:dble_T0_main}
+\end{equation}
+where $\omega$ controls attenuation strength and $\Omega(\mathbf{x})$ is a local window. The resulting map is further refined by guided filtering to preserve object boundaries and suppress halo artifacts. Full derivations, including channel-wise transmission extension and coarse restoration expressions, are provided in Supplementary A.
+
+\subsection{Multi-Condition Rectified Flow Network}
+With condition tensor $C$, the network is trained by pairing source noise and target reference images. We sample $X_0\sim\mathcal{N}(0,\mathbf{I})$ and define the interpolation state
+\begin{equation}
+X_t = tX_1 + (1-t)X_0,\qquad t\sim\mathcal{U}(0,1),
+\label{eq:rf_xt}
+\end{equation}
+then regress the straight transport velocity:
+\begin{equation}
+\min_{\theta}\ \mathbb{E}_{X_0,X_1,t}\left[\left\|v_{\theta}(X_t,C,t) - (X_1-X_0)\right\|^2\right].
+\label{eq:rf_mse}
+\end{equation}
+This objective encourages the network to learn a stable global direction from degraded observations to enhanced outputs under physical conditions.
+
+During inference, we discretize \cref{eq:rf_ode} with Euler integration:
+\begin{equation}
+X_{t_{i+1}} = X_{t_i} + v_{\theta}(X_{t_i}, C, t_i)\,\Delta t,\qquad \Delta t=\frac{1}{n}.
+\label{eq:euler}
+\end{equation}
+Small $n$ gives fast inference, while moderate multi-step integration improves local detail restoration.
+
+\begin{figure}[H]
+    \centering
+    \vspace{-0.4cm}
+    \includegraphics[width=\linewidth]{fig3.png}
+    \caption{Denoising and transport process in the multi-condition rectified flow network.}
+    \label{fig:flow_process}
+    \vspace{-0.4cm}
+\end{figure}
+
+\subsection{Composite Loss Function and Two-Stage Training Strategy}
+The training objective combines transport learning and image-domain quality constraints. The core term is the mask-aware velocity regression loss:
+\begin{equation}
+\mathcal{L}_{flow} = \mathbb{E}_{X_0,X_1,t}\left[\frac{\left\|\mathcal{M}\odot\bigl(v_{\theta}(X_t,C,t)-(X_1-X_0)\bigr)\right\|_2^2}{\|\mathcal{M}\|_1+\varepsilon}\right].
+\label{eq:lflow_masked}
+\end{equation}
+On top of this term, structural similarity, perceptual consistency, and LAB color-consistency losses are added to improve texture sharpness and chromatic stability.
+
+The total objective is
+\begin{equation}
+\mathcal{L}_{total} = \mathcal{L}_{flow} + \lambda_1\mathcal{L}_{SSIM} + \lambda_2\mathcal{L}_{per} + \lambda_3\mathcal{L}_{color}.
+\label{eq:ltotal}
+\end{equation}
+Optimization is performed in two stages. The first stage focuses on $\mathcal{L}_{flow}$ to stabilize transport geometry, and the second stage enables the full objective to refine visual quality. The transition schedule for reconstruction weights is
+\begin{equation}
+\lambda_i(e) = \frac{\lambda_i^{max}}{1 + \exp\left(-\frac{e - e_0}{\kappa}\right)},\qquad i\in\{1,2,3\}.
+\label{eq:lambda_schedule}
+\end{equation}
+Detailed reconstruction formulas and additional implementation settings are reported in Supplementary A and Supplementary C.

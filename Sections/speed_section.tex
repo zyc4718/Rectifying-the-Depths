@@ -1,0 +1,26 @@
+% !TeX root = ../main.tex
+\subsection{Speed and Efficiency Analysis}
+\label{sec:speed}
+
+We further evaluate runtime under the same hardware and input setting used in the main experiments. The comparison includes two representative diffusion baselines, DM-water~\cite{r24} and PA-Diff~\cite{r8}. All settings are evaluated at $512\times512$, and we report latency in milliseconds per image and throughput in frames per second.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Runtime comparison at $512\times512$ resolution. Speedup columns are computed against DM-water and PA-Diff.}
+    \label{tab:speed_runtime}
+    \setlength{\tabcolsep}{3.5pt}
+    \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lcccc}
+        \toprule
+        Setting & Latency (ms) $\downarrow$ & FPS $\uparrow$ & vs DM-water $\uparrow$ & vs PA-Diff $\uparrow$ \\
+        \midrule
+        Ours ($N=1$) & 99 & 10.10 & 5.66$\times$ & 9.29$\times$ \\
+        Ours ($N=3$) & 292 & 3.42 & 1.92$\times$ & 3.15$\times$ \\
+        Ours ($N=5$) & 487 & 2.05 & 1.15$\times$ & 1.89$\times$ \\
+        DM-water~\cite{r24} & 560 & 1.79 & 1.00$\times$ & 1.64$\times$ \\
+        PA-Diff~\cite{r8} & 920 & 1.09 & 0.61$\times$ & 1.00$\times$ \\
+        \bottomrule
+    \end{tabular*}
+\end{table}
+
+Table~\ref{tab:speed_runtime} shows that RF-MCUIE keeps clear efficiency advantages over both diffusion baselines in practical operating points. The three-step setting remains a strong default for quality and runtime. At step $N=5$, the iterative refinement is already complete and the restoration quality is strong, while runtime is still faster than DM-water and PA-Diff.
